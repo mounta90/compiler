@@ -1,0 +1,7 @@
+program tiny_example_2
+{
+    function integer main()
+    {
+        print_string( "Hello\n" );
+    }
+}

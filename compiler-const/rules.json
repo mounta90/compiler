@@ -1,0 +1,38 @@
+{
+  "program": ["K_PROGRAM IDENTIFIER LCURLY program_body RCURLY"],
+  "program_body": ["function program_body", "empty"],
+  "function": [
+    "K_FUNCTION K_INTEGER IDENTIFIER LPAREN RPAREN LCURLY function_body RCURLY"
+  ],
+  "function_body": ["statement function_body", "empty"],
+  "body": [
+    "expression SEMI body",
+    "statement SEMI body",
+    "function_call SEMI body",
+    "expression SEMI",
+    "statement SEMI",
+    "function_call SEMI",
+    "empty"
+  ],
+  "statement": [
+    "variable_definition SEMI",
+    "variable_declaration SEMI",
+    "variable_assignment SEMI",
+    "function_call SEMI"
+  ],
+  "function_call": ["built_in_functions LPAREN function_call_args RPAREN"],
+  "built_in_functions": ["K_PRINT_INTEGER", "K_PRINT_STRING"],
+  "function_call_args": ["IDENTIFIER", "SCONSTANT", "empty"],
+  "variable_assignment": ["IDENTIFIER ASSIGN expression"],
+  "variable_declaration": ["K_INTEGER IDENTIFIER ASSIGN expression"],
+  "variable_definition": ["K_INTEGER IDENTIFIER"],
+  "expression": [
+    "term PLUS expression",
+    "MINUS expression",
+    "term MINUS expression",
+    "term"
+  ],
+  "term": ["factor DIVIDE term", "factor MULTIPLY term", "factor"],
+  "factor": ["ICONSTANT", "DCONSTANT"],
+  "empty": [""]
+}

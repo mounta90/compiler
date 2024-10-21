@@ -1,0 +1,304 @@
+program $two_grid_solver
+{
+    // ------------------------------------------------------------------------
+    // Place a constant in every element of a vector.
+    // ------------------------------------------------------------------------
+
+    procedure
+         set_constant(
+            double  dval,                   // The constant value
+            double  dsoln[], integer s1     // Approximate solution
+                     )
+    {
+        integer i := 0;                     // Loop variable
+
+        while ( i >= 0 && i <= s1 )
+            dsoln[i++] := dval;
+
+    }   // of set_constant
+
+    // ------------------------------------------------------------------------
+    // Print every element of a vector, one per line with the index.
+    // ------------------------------------------------------------------------
+
+    procedure
+         print_vector(
+            string  title,                  // Identification of vector
+            double  dsoln[], integer s1     // Approximate solution
+                     )
+    {
+        integer i;
+
+        print_string( "Vector: " );
+        print_string( "title" );
+        print_string( "\ni  value\n" );
+        do ( i := 0; i <= s1; i++ )
+        {
+            print_integer( i );
+            print_string( " " );
+            print_double( dsoln[i] );
+        }
+        print_string( "--- End of vector\n" );
+
+    }   // of print_vector
+
+    // ------------------------------------------------------------------------
+    // Calculate the little ell-infinity norm of the error in the solution.
+    // ------------------------------------------------------------------------
+
+    function
+    double error_norm(
+            double  dsoln[], integer s1         // Approximate solution
+                     )
+    {
+        integer i := 0;                 // Loop variable
+        double  asoln;                  // abs(dsoln[i])
+        double  l0_norm := 0.0d0;       // Little L1 norm
+
+        // The real solution is uniformly 0, so the maximum error is the
+        // absolute value of the approximate solution
+
+        while ( i <= s1 )
+        {
+            if ( dsoln[i] <= 0. ) then
+                asoln := -dsoln[i];
+            else
+                asoln := dsoln[i];
+            if ( asoln > l0_norm ) then
+            {
+                l0_norm := asoln;
+            }
+            i++;
+        }
+
+        return l0_norm;
+
+    }   // of error_norm
+
+    // ------------------------------------------------------------------------
+    // Compute the residual vector.
+    // ------------------------------------------------------------------------
+
+    procedure
+         residuals(
+            double  dsoln[], integer s1,        // Approximate solution
+            double  drhs[], integer rhs1,       // Right hand side
+            double  dres[], integer res1        // Residuals
+                   )
+    {
+        integer i;                      // Loop variable
+
+        // Compute the residuals
+        dres[0] := dres[res1] := 0.0d0;
+        do ( i := 1; i < s1; i++ )
+            dres[i] := drhs[i] - 2.0 * dsoln[i]
+                              + dsoln[i-1]
+                              + dsoln[i+1];
+
+    }   // of residuals
+
+    // ------------------------------------------------------------------------
+    // Do some Gauss-Seidel iterations to approximate the solution.
+    // ------------------------------------------------------------------------
+
+    function
+    double gauss_seidel(
+            integer iters,                      // Number of iterations
+            double  dsoln[], integer s1,        // Approximate solution
+            double  drhs[], integer rhs1        // Right hand side
+                     )
+    {
+        integer i, n := 1;                        // Loop variables
+
+        // Do iters number of Gauss-Seidel iterations
+        while (n<=iters)
+        {
+            do ( i := 1; i < s1; i++ )
+                dsoln[i] := ( drhs[i] + dsoln[i-1]
+                                     + dsoln[i+1]) / 2.0d0;
+            n++;
+        }
+
+        // Return the error norm
+        return error_norm( dsoln, s1 );
+
+    }   // of gauss_seidel
+
+    // ------------------------------------------------------------------------
+    // Interpolate between the two grids.
+    // ------------------------------------------------------------------------
+
+    function
+    integer interpolate(
+            double dfrom[], integer f1,         // Original data, sized (f1)
+            double dto[],   integer t1          // Target date, sized  (t1)
+                   )
+    {
+
+        // Two procedures defined only inside of interpolate
+
+        // --------------------------------------------------------------------
+        // Interpolate from the finer mesh to the coarser mesh.
+        // --------------------------------------------------------------------
+
+        procedure
+             coarsen(
+                double dfrom[], integer f1,     // Original data, sized (f1)
+                double dto[],   integer t1      // Target date, sized  (t1)
+                   )
+        {
+            integer i, m;       // Loop variables
+
+            // Aggregate the from data in a Galerkin style on the coarser mesh
+            dto[0] := dto[t1] := 0.;
+            m := 0;
+            do ( i := 1 ; i < t1 ; i++ )
+            {
+                m += 2;
+                dto[i] := dfrom[m] +
+                        5.d-1 * ( dfrom[m-1] + dfrom[m+1] );
+            }
+
+        }   // of coarsen
+
+
+        // --------------------------------------------------------------------
+        // Interpolate from the coarser mesh to the finer mesh and add to an
+        // already existing approximate solution.
+        // --------------------------------------------------------------------
+
+        procedure
+             refine_add(
+                double dfrom[], integer f1,     // Original data, sized (f1)
+                double dto[],   integer t1      // Target date, sized  (t1)
+                   )
+        {
+            integer i, m;       // Loop variables
+
+            // Deal with mesh points coincident between the two meshes
+            m := 0;
+            do ( i := 1; i < f1 ; i++ )
+            {
+                m := m + 2;
+                dto[m] := dto[m] + dfrom[i];
+            }
+
+            // Deal with mesh points noncoincident between the two meshes
+            m := -1;
+            do ( i := 0; i < f1; i++ )
+            {
+                m := m + 2;
+                dto[m] := dto[m] +
+                         .5 * ( dfrom[i] + dfrom[i+1] );
+            }
+
+        }   // of refine_add
+
+
+        // interpolate's code really starts here
+
+        // Interpolate to a coarser mesh
+        if ( t1 == f1 / 2 ) then
+            coarsen( dfrom, f1, dto, t1 );
+
+        // Interpolate and add to what is on a finer mesh
+        else if ( t1 == f1 * 2 ) then
+        {
+            refine_add( dfrom, f1, dto, t1 );
+        }
+
+        // Uh, oh... this is incompatible
+        else
+        {
+            print_string( "Error in routine interp: data size mismatch.\n" );
+            return 0;
+        }
+        return 1;
+
+    }   // of interpolate
+
+    // ------------------------------------------------------------------------
+    // The actual two grid multilevel algorithm.
+    // ------------------------------------------------------------------------
+
+    function
+    integer main(
+            )
+    {
+        integer rval := 0;      // Return value
+        integer fm1:=1, cm1;    // Fine and coarse mesh upper limits
+        double  enorm;          // Error norm
+
+        // Determine fine mesh size.  Coarse mesh is roughly half the size.
+        while( fm1 <= 4 || fm1 % 2 != 0 )
+        {
+            print_string( "Number of points in the fine mesh (must be even and atleast 6) " );
+            read_integer( fm1 );
+        }
+        cm1 := fm1 / 2;
+        print_string( "Fine   mesh points 0:" );
+        print_integer( fm1 );
+        print_string( "\nCoarse mesh points 0:" );
+        print_integer( cm1 );
+        print_string( "\n" );
+
+        // Allocate space dynamically
+        double fm[fm1+1],       // Fine grid approximate solution
+               frhs[fm1+1],     // Fine grid right hand side
+               fres[fm1+1];     // Fine grid residuals
+        double cm[cm1+1], crhs[cm1+1];  // Coarse grid solution and right
+                                        // hand side
+
+        // Set the initial guess to the solution
+        set_constant( 1.0d0, fm, fm1 );
+        fm[0] := 0.0d0;
+        fm[fm1] := 0.;
+        print_vector( "Initial guess", fm, fm1 );
+
+        // Get the initial error norm
+        enorm := error_norm( fm, fm1 );
+        print_string( "initial error norm := " );
+        print_double( enorm );
+        print_string( "\n" );
+
+        // Do some Gauss-Seidel iterations on the fine mesh
+        enorm := gauss_seidel( 4, fm, fm1, frhs, fm1 );
+        print_vector( "after first fine mesh smoothing", fm, fm1 );
+        print_string( "Fine mesh error norm := " );
+        print_double( enorm );
+        print_string( "\n" );
+
+        // Compute the residuals on the fine mesh and project them onto the
+        // coarse mesh right hand side.
+        residuals( fm, fm1, frhs, fm1, fres, fm1 );
+        print_vector( "Residuals on fine mesh", fres, fm1 );
+        if ( interpolate( fres, fm1, crhs, cm1 ) != 0 ) then
+            return rval := 1;
+
+        // Do some Gauss-Seidel iterations on the coarse mesh
+        enorm := gauss_seidel( 500, cm, cm1, crhs, cm1 );
+        print_vector( "coarse mesh correction", cm, cm1 );
+
+        // Interpolate the correction to the fine grid
+        if ( interpolate( cm, cm1, fm, fm1 ) > 0 ) then
+            return 2;
+        enorm := error_norm( fm, fm1 );
+        print_string( "Fine mesh error norm := " );
+        print_double( enorm );
+        print_string( "\n" );
+        print_vector( "after interpolation to fine mesh", fm, fm1 );
+
+        // Do some Gauss-Seidel iterations on the fine mesh
+        enorm := gauss_seidel( 4, fm, fm1, frhs, fm1 );
+        print_vector( "after second fine mesh smoothing", fm, fm1 );
+        print_string( "Fine mesh error norm := " );
+        print_double( enorm );
+        print_string( "\n" );
+
+        // All done.  Return 0 if everything worked out or something else if
+        // something went wrong.
+        return rval;
+
+    }   // of main
+
+}

@@ -1,0 +1,21 @@
+program $two_grid_solver
+{
+    function integer main()
+    {
+        integer i := 0;
+        while ( i < 10 )
+            print_integer( i );
+
+        integer i;
+        do ( i := 0 ; i < 5 ; i++)
+        {
+            if ( i % 2 == 0 ) then
+                print_string( "EVEN" );
+            else
+                print_string( "ODD" );
+        }
+
+        return 0;
+    }
+
+}
